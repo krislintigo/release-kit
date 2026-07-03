@@ -92,10 +92,20 @@ function ownPackage() {
   return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 }
 
-const green = (text) => `[32m${text}[0m`
-const red = (text) => `[31m${text}[0m`
-const yellow = (text) => `[33m${text}[0m`
-const dim = (text) => `[2m${text}[0m`
+// Enable ANSI colour only when the output can actually render it: a TTY, unless
+// NO_COLOR is set; FORCE_COLOR overrides either way. This keeps non-TTY consoles
+// (IDE "run" windows, pipes, CI logs) free of raw escape codes like `[32m`.
+const useColor = (() => {
+  if (process.env.NO_COLOR !== undefined || process.env.FORCE_COLOR === '0') return false
+  if (process.env.FORCE_COLOR) return true
+  return Boolean(process.stdout.isTTY)
+})()
+
+const paint = (code) => (text) => (useColor ? `\x1b[${code}m${text}\x1b[0m` : text)
+const green = paint(32)
+const red = paint(31)
+const yellow = paint(33)
+const dim = paint(2)
 
 async function runInit(flags) {
   const pm = typeof flags.pm === 'string' ? flags.pm : undefined
