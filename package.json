@@ -1,6 +1,6 @@
 {
   "name": "@krislintigo/release-kit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Opinionated release toolkit: a shareable semantic-release config, commitlint/husky/publint helpers, and a CLI to release and scaffold npm packages.",
   "type": "module",
   "license": "MIT",
