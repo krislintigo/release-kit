@@ -19,7 +19,7 @@ pnpm add -D @krislintigo/release-kit semantic-release
 `semantic-release` is an (optional) peer dependency — install it in any project
 that actually runs a release. Everything else the config needs is bundled.
 
-Requires Node.js 22.13.1 or newer.
+Requires Node.js 24.16.0 or newer.
 
 ## Quick start
 
