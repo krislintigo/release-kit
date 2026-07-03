@@ -12,14 +12,20 @@ Commits), creates GitHub releases and tags, and publishes to npm with provenance
 ## Install
 
 ```sh
-pnpm add -D @krislintigo/release-kit semantic-release husky @commitlint/cli
+pnpm add -D @krislintigo/release-kit
 ```
 
 `semantic-release`, `husky` and `@commitlint/cli` are **required** peer
-dependencies. Using semantic-release means your commits must follow Conventional
-Commits, so husky + commitlint (which enforce exactly that) are part of the deal,
-not optional extras. Everything else — the release plugins and the commitlint
-ruleset — is bundled.
+dependencies — using semantic-release means your commits must follow Conventional
+Commits, so husky + commitlint (which enforce exactly that) are part of the deal.
+On **pnpm** and **npm** they install automatically alongside the package. **yarn**
+does not auto-install peers, so add them yourself:
+
+```sh
+yarn add -D @krislintigo/release-kit semantic-release husky @commitlint/cli
+```
+
+Everything else — the release plugins and the commitlint ruleset — is bundled.
 
 Requires Node.js 24.16.0 or newer.
 
@@ -33,8 +39,9 @@ pnpm dlx @krislintigo/release-kit init
 
 `init` writes a `.releaserc.json`, a GitHub Actions workflow, a
 `commitlint.config.js`, a husky `commit-msg` hook, pnpm hoist patterns, and
-release scripts — then prints the dev dependencies to install. Existing files are
-never overwritten unless you pass `--force`.
+release scripts — then prints the exact install command (on pnpm/npm that is just
+the package itself; the peers come automatically). Existing files are never
+overwritten unless you pass `--force`.
 
 ## The release config
 

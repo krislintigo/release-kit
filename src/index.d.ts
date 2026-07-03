@@ -170,8 +170,11 @@ export interface InitOptions {
 export interface InitResult {
   packageManager: PackageManager
   actions: ScaffoldAction[]
-  /** Dev dependencies the project should install to complete setup. */
-  devDependencies: string[]
+  /**
+   * Required peer dependencies. On pnpm and npm they install automatically with
+   * the package; on yarn they must be added explicitly.
+   */
+  peerDependencies: string[]
 }
 
 /** Scaffold release tooling into a project. */

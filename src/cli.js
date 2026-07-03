@@ -79,9 +79,8 @@ function camelCase(value) {
   return value.replace(/-([a-z])/g, (_, char) => char.toUpperCase())
 }
 
-function ownVersion() {
-  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
-  return pkg.version
+function ownPackage() {
+  return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 }
 
 const green = (text) => `[32m${text}[0m`
@@ -106,14 +105,19 @@ async function runInit(flags) {
     console.log(`  ${label[action.status]}  ${action.path}`)
   }
 
-  const installCmd =
-    result.packageManager === 'npm'
-      ? `npm install -D ${result.devDependencies.join(' ')}`
-      : `${result.packageManager} add -D ${result.devDependencies.join(' ')}`
+  const pkg = ownPackage().name
+  const add = result.packageManager === 'npm' ? 'npm install -D' : `${result.packageManager} add -D`
+
+  // pnpm and npm auto-install required peers; yarn does not, so list them there.
+  const autoPeers = result.packageManager !== 'yarn'
+  const installCmd = autoPeers ? `${add} ${pkg}` : `${add} ${pkg} ${result.peerDependencies.join(' ')}`
 
   console.log(`\nNext steps:\n`)
-  console.log(`  1. Install the dev dependencies:`)
+  console.log(`  1. Install:`)
   console.log(`       ${installCmd}`)
+  if (autoPeers) {
+    console.log(`       ${dim(`(${result.peerDependencies.join(', ')} come along automatically as peers)`)}`)
+  }
   console.log(`  2. Commit the generated files.`)
   console.log(`  3. Push to "main" (or run the Release workflow) to publish.`)
   console.log(`\n  ${dim('Releasing needs a GITHUB_TOKEN, and npm trusted publishing or an NPM_TOKEN secret.')}\n`)
@@ -197,7 +201,7 @@ async function main() {
     case 'version':
     case '--version':
     case '-v':
-      console.log(ownVersion())
+      console.log(ownPackage().version)
       return
     case undefined:
     case 'help':

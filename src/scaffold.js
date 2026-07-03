@@ -230,7 +230,7 @@ export function init(options = {}) {
 
   actions.push(patchPackageJson(cwd, force))
 
-  const devDependencies = ['@krislintigo/release-kit', 'semantic-release', 'husky', '@commitlint/cli']
+  const peerDependencies = ['semantic-release', 'husky', '@commitlint/cli']
 
-  return { packageManager, actions, devDependencies }
+  return { packageManager, actions, peerDependencies }
 }
