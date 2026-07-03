@@ -7,27 +7,24 @@ import process from 'node:process'
  */
 
 /**
- * Package-manager-specific command fragments used across the generated files.
+ * Package-manager-specific command fragments used in the generated CI workflow.
  *
- * @type {Record<PackageManager, { install: string, run: string, commitlint: string, setup: string }>}
+ * @type {Record<PackageManager, { install: string, run: string, setup: string }>}
  */
 const PM = {
   pnpm: {
     install: 'pnpm install --frozen-lockfile',
     run: 'pnpm',
-    commitlint: 'pnpm exec commitlint --edit "$1"',
     setup: 'pnpm/action-setup@v4',
   },
   npm: {
     install: 'npm ci',
     run: 'npm run',
-    commitlint: 'npx --no-install commitlint --edit "$1"',
     setup: '',
   },
   yarn: {
     install: 'yarn install --immutable',
     run: 'yarn',
-    commitlint: 'yarn commitlint --edit "$1"',
     setup: '',
   },
 }
@@ -119,6 +116,13 @@ const COMMITLINT_CONFIG = `export default {
 }
 `
 
+// Native git hook — no husky. Calls release-kit's own bin directly (always
+// present as a direct dependency), so there is no package-manager or PATH
+// lookup. git runs hooks from the repository root, where node_modules lives.
+const COMMIT_MSG_HOOK = `#!/usr/bin/env sh
+./node_modules/.bin/release-kit commitlint --edit "$1"
+`
+
 const NPMRC_PATTERNS = [
   'public-hoist-pattern[]=@semantic-release/*',
   'public-hoist-pattern[]=conventional-changelog-*',
@@ -176,10 +180,11 @@ function patchPackageJson(cwd, force) {
   const pkg = JSON.parse(readFileSync(target, 'utf8'))
   const scripts = pkg.scripts ?? {}
   const desired = {
-    prepare: 'husky',
-    commitlint: 'commitlint',
-    release: 'semantic-release',
-    'release:dry-run': 'semantic-release --dry-run',
+    prepare: 'release-kit install-hooks',
+    commitlint: 'release-kit commitlint',
+    check: 'release-kit check',
+    release: 'release-kit release',
+    'release:dry-run': 'release-kit release --dry-run',
   }
   let changed = false
   for (const [name, command] of Object.entries(desired)) {
@@ -198,8 +203,9 @@ function patchPackageJson(cwd, force) {
 
 /**
  * Scaffold release tooling into a project: semantic-release config, a CI
- * workflow, commitlint config, a husky commit-msg hook, pnpm hoist patterns, and
- * release scripts. Existing files are left untouched unless `force` is set.
+ * workflow, a commitlint config, a native git commit-msg hook, pnpm hoist
+ * patterns, and release scripts. Existing files are left untouched unless
+ * `force` is set.
  *
  * @param {InitOptions} [options]
  * @returns {InitResult}
@@ -218,11 +224,7 @@ export function init(options = {}) {
   actions.push(write(cwd, '.releaserc.json', RELEASERC, force))
   actions.push(write(cwd, '.github/workflows/release.yml', releaseWorkflow(packageManager, node), force))
   actions.push(write(cwd, 'commitlint.config.js', COMMITLINT_CONFIG, force))
-
-  // commitlint + husky are mandatory in this kit, so the commit-msg hook is
-  // always written — there is no opt-out.
-  const hook = `${PM[packageManager].commitlint}\n`
-  actions.push(write(cwd, '.husky/commit-msg', hook, force, 0o755))
+  actions.push(write(cwd, '.githooks/commit-msg', COMMIT_MSG_HOOK, force, 0o755))
 
   if (packageManager === 'pnpm') {
     actions.push(ensureNpmrc(cwd))
@@ -230,7 +232,5 @@ export function init(options = {}) {
 
   actions.push(patchPackageJson(cwd, force))
 
-  const peerDependencies = ['semantic-release', 'husky', '@commitlint/cli']
-
-  return { packageManager, actions, peerDependencies }
+  return { packageManager, actions }
 }

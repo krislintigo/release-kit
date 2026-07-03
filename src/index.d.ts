@@ -170,11 +170,6 @@ export interface InitOptions {
 export interface InitResult {
   packageManager: PackageManager
   actions: ScaffoldAction[]
-  /**
-   * Required peer dependencies. On pnpm and npm they install automatically with
-   * the package; on yarn they must be added explicitly.
-   */
-  peerDependencies: string[]
 }
 
 /** Scaffold release tooling into a project. */
@@ -182,6 +177,45 @@ export function init(options?: InitOptions): InitResult
 
 /** Detect a project's package manager from its `packageManager` field or lockfile. */
 export function detectPackageManager(cwd: string): PackageManager
+
+/** Options for {@link installHooks}. */
+export interface InstallHooksOptions {
+  cwd?: string
+  /** Hooks directory to register via `core.hooksPath`. Default: `'.githooks'`. */
+  dir?: string
+}
+
+/** Result of {@link installHooks}. */
+export interface InstallHooksResult {
+  ok: boolean
+  /** True when skipped because there is no git repository. */
+  skipped: boolean
+  dir: string
+}
+
+/** Enable committed git hooks by setting `core.hooksPath`. Skips when there is no repo. */
+export function installHooks(options?: InstallHooksOptions): InstallHooksResult
+
+/** Options for {@link lintCommits}. */
+export interface LintCommitsOptions {
+  cwd?: string
+  /** Lint the message in this file (or `true` for `.git/COMMIT_EDITMSG`). */
+  edit?: string | boolean
+  /** Lint the range of commits after this ref. */
+  from?: string
+  /** Lint the range of commits up to this ref. */
+  to?: string
+}
+
+/** Result of {@link lintCommits}. */
+export interface LintCommitsResult {
+  valid: boolean
+  /** Formatted, human-readable report (may be empty when everything passed). */
+  output: string
+}
+
+/** Lint commit messages with the bundled commitlint engine and shared config. */
+export function lintCommits(options?: LintCommitsOptions): Promise<LintCommitsResult>
 
 /** The shared commitlint configuration (also at `@krislintigo/release-kit/commitlint`). */
 export declare const commitlintConfig: CommitlintConfig

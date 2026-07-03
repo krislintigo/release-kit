@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url'
 
 import { check } from './check.js'
 import { verifyEnvironment } from './env.js'
+import { installHooks } from './hooks.js'
+import { lintCommits } from './lint.js'
 import { release } from './release.js'
 import { init } from './scaffold.js'
 
@@ -14,31 +16,38 @@ Usage:
   release-kit <command> [options]
 
 Commands:
-  init         Scaffold semantic-release config, CI workflow, commitlint,
-               husky hook and release scripts into the current project.
-  release      Run semantic-release after a pre-flight environment check.
-  check        Lint the package for publishing problems (publint).
-  doctor       Report whether the environment is ready to release.
-  help         Show this help.
+  init           Scaffold config, CI workflow, commitlint, a git hook and
+                 release scripts into the current project.
+  release        Run semantic-release (reads your .releaserc) after a check.
+  commitlint     Lint commit message(s) — used by the commit-msg hook.
+  install-hooks  Enable the committed git hooks (sets core.hooksPath).
+  check          Lint the package for publishing problems (publint).
+  doctor         Report whether the environment is ready to release.
+  help           Show this help.
 
 Options:
   init:
-    --pm <pnpm|npm|yarn>   Package manager to target (auto-detected).
-    --node <version>       Node version for the CI workflow (default 24).
-    --force                Overwrite files that already exist.
+    --pm <pnpm|npm|yarn>     Package manager to target (auto-detected).
+    --node <version>         Node version for the CI workflow (default 24).
+    --force                  Overwrite files that already exist.
   release:
-    --dry-run              Compute the next release without publishing.
-    --branch <name>        Expected release branch (default main).
-    --no-verify            Skip the pre-flight environment check.
+    --dry-run                Compute the next release without publishing.
+    --branch <name>          Expected release branch (default main).
+    --no-verify              Skip the pre-flight environment check.
+  commitlint:
+    --edit <file>            Lint the message in <file> (git passes $1).
+    --from <ref> --to <ref>  Lint a range of commits (e.g. in CI).
+  install-hooks:
+    --dir <path>             Hooks directory (default .githooks).
   check:
-    --self                 Lint this package (@krislintigo/release-kit).
-    --strict               Treat suggestions as failures.
+    --self                   Lint this package (@krislintigo/release-kit).
+    --strict                 Treat suggestions as failures.
   doctor:
-    --branch <name>        Expected release branch (default main).
-    --require-npm-token    Fail if NPM_TOKEN is absent.
+    --branch <name>          Expected release branch (default main).
+    --require-npm-token      Fail if NPM_TOKEN is absent.
 
 Examples:
-  release-kit init --pm pnpm
+  release-kit init
   release-kit doctor
   release-kit release --dry-run
 `
@@ -83,10 +92,10 @@ function ownPackage() {
   return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 }
 
-const green = (text) => `[32m${text}[0m`
-const red = (text) => `[31m${text}[0m`
-const yellow = (text) => `[33m${text}[0m`
-const dim = (text) => `[2m${text}[0m`
+const green = (text) => `[32m${text}[0m`
+const red = (text) => `[31m${text}[0m`
+const yellow = (text) => `[33m${text}[0m`
+const dim = (text) => `[2m${text}[0m`
 
 async function runInit(flags) {
   const pm = typeof flags.pm === 'string' ? flags.pm : undefined
@@ -106,25 +115,22 @@ async function runInit(flags) {
   }
 
   const pkg = ownPackage().name
-  const add = result.packageManager === 'npm' ? 'npm install -D' : `${result.packageManager} add -D`
-
-  // pnpm and npm auto-install required peers; yarn does not, so list them there.
-  const autoPeers = result.packageManager !== 'yarn'
-  const installCmd = autoPeers ? `${add} ${pkg}` : `${add} ${pkg} ${result.peerDependencies.join(' ')}`
+  const install =
+    result.packageManager === 'npm' ? `npm install -D ${pkg}` : `${result.packageManager} add -D ${pkg}`
 
   console.log(`\nNext steps:\n`)
-  console.log(`  1. Install:`)
-  console.log(`       ${installCmd}`)
-  if (autoPeers) {
-    console.log(`       ${dim(`(${result.peerDependencies.join(', ')} come along automatically as peers)`)}`)
-  }
-  console.log(`  2. Commit the generated files.`)
+  console.log(`  1. Install release-kit — that is the only package you need:`)
+  console.log(`       ${install}`)
+  console.log(`  2. Commit the generated files; running install activates the git hook.`)
   console.log(`  3. Push to "main" (or run the Release workflow) to publish.`)
   console.log(`\n  ${dim('Releasing needs a GITHUB_TOKEN, and npm trusted publishing or an NPM_TOKEN secret.')}\n`)
 }
 
 async function runRelease(flags) {
-  if (flags.verify !== false) {
+  // A dry run is a preview and is often run locally without tokens, so skip the
+  // pre-flight there; semantic-release still validates what it needs.
+  const skipVerify = flags.verify === false || flags.dryRun === true
+  if (!skipVerify) {
     const report = verifyEnvironment({
       branch: typeof flags.branch === 'string' ? flags.branch : undefined,
     })
@@ -143,6 +149,25 @@ async function runRelease(flags) {
     return
   }
   console.log(green(`\nReleased ${result.nextRelease.gitTag} (${result.nextRelease.type}).\n`))
+}
+
+async function runCommitlint(flags) {
+  const edit = typeof flags.edit === 'string' ? flags.edit : flags.edit === true ? true : undefined
+  const from = typeof flags.from === 'string' ? flags.from : undefined
+  const to = typeof flags.to === 'string' ? flags.to : undefined
+
+  const { valid, output } = await lintCommits({ edit, from, to })
+  if (output.trim()) console.log(output)
+  if (!valid) process.exitCode = 1
+}
+
+function runInstallHooks(flags) {
+  const result = installHooks({ dir: typeof flags.dir === 'string' ? flags.dir : undefined })
+  if (result.skipped) {
+    console.log(dim('release-kit: no git repository — skipping git hooks setup.'))
+  } else {
+    console.log(green(`release-kit: git hooks enabled (core.hooksPath = ${result.dir}).`))
+  }
 }
 
 async function runCheck(flags) {
@@ -194,6 +219,10 @@ async function main() {
       return runInit(flags)
     case 'release':
       return runRelease(flags)
+    case 'commitlint':
+      return runCommitlint(flags)
+    case 'install-hooks':
+      return runInstallHooks(flags)
     case 'check':
       return runCheck(flags)
     case 'doctor':

@@ -2,9 +2,13 @@
 
 Opinionated release toolkit for npm packages. It bundles a shareable
 [semantic-release](https://semantic-release.gitbook.io) configuration, a shared
-[commitlint](https://commitlint.js.org) config, a [husky](https://typicode.github.io/husky)
-hook, a [publint](https://publint.dev) check, and a small CLI that scaffolds all
-of it into a project and drives releases.
+[commitlint](https://commitlint.js.org) config, a native git commit-msg hook, a
+[publint](https://publint.dev) check, and a small CLI that scaffolds all of it
+into a project and drives releases.
+
+It is **self-contained**: everything runs through the single `release-kit`
+binary, so the only thing you install is this package — no husky,
+`@commitlint/cli` or `semantic-release` binaries to add yourself.
 
 The release pipeline builds the changelog from your Git history (Conventional
 Commits), creates GitHub releases and tags, and publishes to npm with provenance.
@@ -15,17 +19,11 @@ Commits), creates GitHub releases and tags, and publishes to npm with provenance
 pnpm add -D @krislintigo/release-kit
 ```
 
-`semantic-release`, `husky` and `@commitlint/cli` are **required** peer
-dependencies — using semantic-release means your commits must follow Conventional
-Commits, so husky + commitlint (which enforce exactly that) are part of the deal.
-On **pnpm** and **npm** they install automatically alongside the package. **yarn**
-does not auto-install peers, so add them yourself:
-
-```sh
-yarn add -D @krislintigo/release-kit semantic-release husky @commitlint/cli
-```
-
-Everything else — the release plugins and the commitlint ruleset — is bundled.
+That is the whole install — **no peer dependencies**. semantic-release, the
+commitlint engine and every release plugin are bundled and driven through the
+`release-kit` binary, which is always available because release-kit is a direct
+dependency. This behaves identically on pnpm, npm and yarn, and under
+`pnpm link` / local development.
 
 Requires Node.js 24.16.0 or newer.
 
@@ -38,10 +36,9 @@ pnpm dlx @krislintigo/release-kit init
 ```
 
 `init` writes a `.releaserc.json`, a GitHub Actions workflow, a
-`commitlint.config.js`, a husky `commit-msg` hook, pnpm hoist patterns, and
-release scripts — then prints the exact install command (on pnpm/npm that is just
-the package itself; the peers come automatically). Existing files are never
-overwritten unless you pass `--force`.
+`commitlint.config.js`, a native `.githooks/commit-msg` hook, pnpm hoist
+patterns, and release scripts, and registers the hooks via `core.hooksPath` on
+the next install. Existing files are never overwritten unless you pass `--force`.
 
 ## The release config
 
@@ -104,9 +101,12 @@ Each plugin can be toggled off (`false`) or handed an options object.
 | `gitMessage`    | `chore(release): …[skip ci]`                      | Release commit message.                                          |
 | `extraPlugins`  | `[]`                                              | Plugins appended to the end of the pipeline.                     |
 
-## commitlint
+## commitlint & git hooks
 
-`commitlint.config.js`:
+`init` installs a native git `commit-msg` hook (via `core.hooksPath`, no husky)
+that runs `release-kit commitlint`, which lints the message with commitlint's
+engine — bundled here, so there is nothing else to install. It also writes a
+`commitlint.config.js` for editor integration and manual runs:
 
 ```js
 export default {
@@ -115,21 +115,24 @@ export default {
 ```
 
 Built on `@commitlint/config-conventional`, so the commit types it accepts are
-exactly the ones the release pipeline understands.
+exactly the ones the release pipeline understands. The hook works even without
+this file — the shared ruleset is the default.
 
 ## CLI
 
 ```
-release-kit init      Scaffold config, CI, commitlint, husky hook and scripts.
-release-kit release   Run semantic-release after a pre-flight check.
-release-kit check     Lint the package for publishing problems (publint).
-release-kit doctor    Report whether the environment is ready to release.
+release-kit init           Scaffold config, CI, commitlint, git hook and scripts.
+release-kit release        Run semantic-release (reads .releaserc) after a check.
+release-kit commitlint     Lint commit message(s); used by the commit-msg hook.
+release-kit install-hooks  Enable the committed git hooks (sets core.hooksPath).
+release-kit check          Lint the package for publishing problems (publint).
+release-kit doctor         Report whether the environment is ready to release.
 ```
 
 Run `release-kit help` for the full flag reference. Useful ones:
 
 ```sh
-release-kit init --pm pnpm --node 24   # target a package manager / Node version
+release-kit init --node 24             # set the CI workflow's Node version
 release-kit doctor                     # tokens, branch and clean-tree check
 release-kit check                      # publint the current package
 release-kit release --dry-run          # preview the next release
@@ -144,11 +147,14 @@ const report = verifyEnvironment({ branch: 'main' })
 if (report.ok) await release()
 ```
 
-- `release(options)` / `dryRun(options)` — run semantic-release with the shared
-  config (or any `createReleaseConfig` option) applied.
+- `release(options)` / `dryRun(options)` — run semantic-release. With no config
+  options it uses the project's own `.releaserc`; pass `createReleaseConfig`
+  options (or a ready `config`) to override.
 - `verifyEnvironment(options)` — check tokens, branch and working tree; returns a
   report, never throws.
 - `check(options)` — run publint and get structured results.
+- `lintCommits(options)` — lint commit messages with the bundled commitlint engine.
+- `installHooks(options)` — set `core.hooksPath`; skips when there is no repo.
 - `init(options)` / `detectPackageManager(cwd)` — the scaffolding used by the CLI.
 
 ## CI

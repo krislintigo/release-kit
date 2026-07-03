@@ -43,10 +43,10 @@
   "types": "./src/index.d.ts",
   "scripts": {
     "check": "node --check src/cli.js && node src/cli.js check --self",
-    "commitlint": "commitlint",
-    "prepare": "husky",
-    "release": "semantic-release",
-    "release:dry-run": "semantic-release --dry-run"
+    "commitlint": "node ./src/cli.js commitlint",
+    "prepare": "node ./src/cli.js install-hooks",
+    "release": "node ./src/cli.js release",
+    "release:dry-run": "node ./src/cli.js release --dry-run"
   },
   "publishConfig": {
     "access": "public",
@@ -59,18 +59,17 @@
     "changelog",
     "conventional-commits",
     "commitlint",
-    "husky",
+    "git-hooks",
     "publint",
     "npm",
     "release-config"
   ],
-  "peerDependencies": {
-    "@commitlint/cli": ">=21",
-    "husky": ">=9",
-    "semantic-release": ">=25"
-  },
   "dependencies": {
     "@commitlint/config-conventional": "^21.2.0",
+    "@commitlint/format": "^21.2.0",
+    "@commitlint/lint": "^21.2.0",
+    "@commitlint/load": "^21.2.0",
+    "@commitlint/read": "^21.2.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/git": "^10.0.1",
@@ -78,11 +77,7 @@
     "@semantic-release/npm": "^13.1.5",
     "@semantic-release/release-notes-generator": "^14.1.1",
     "conventional-changelog-conventionalcommits": "^10.2.0",
-    "publint": "^0.3.21"
-  },
-  "devDependencies": {
-    "@commitlint/cli": "^21.2.0",
-    "husky": "^9.1.7",
+    "publint": "^0.3.21",
     "semantic-release": "^25.0.5"
   }
 }

@@ -8,22 +8,13 @@ import { createReleaseConfig } from './config.js'
 
 /**
  * Load semantic-release lazily. It is an (optional) peer dependency, so we only
- * require it to be installed when an actual release is requested, and we fail
- * with an actionable message instead of a raw module-resolution error.
+ * import it, so a release only pays for loading it when one is actually run.
  *
  * @returns {Promise<typeof import('semantic-release').default>}
  */
 async function loadSemanticRelease() {
-  try {
-    const mod = await import('semantic-release')
-    return mod.default ?? mod
-  } catch (cause) {
-    throw new Error(
-      'Could not load "semantic-release". Install it in your project:\n' +
-        '  pnpm add -D semantic-release',
-      { cause },
-    )
-  }
+  const mod = await import('semantic-release')
+  return mod.default ?? mod
 }
 
 /**
@@ -44,9 +35,14 @@ export async function release(options = {}) {
   } = options
 
   const semanticRelease = await loadSemanticRelease()
-  const resolvedConfig = config ?? createReleaseConfig(configOptions)
 
-  return semanticRelease({ ...resolvedConfig, dryRun }, { cwd, env })
+  // With an explicit config or config options, build/inject it. Otherwise pass
+  // nothing so semantic-release loads the project's own config (e.g. a
+  // `.releaserc.json` that extends "@krislintigo/release-kit") — this keeps any
+  // per-project customisation intact when invoked via `release-kit release`.
+  const base = config ?? (Object.keys(configOptions).length > 0 ? createReleaseConfig(configOptions) : {})
+
+  return semanticRelease({ ...base, dryRun }, { cwd, env })
 }
 
 /**
