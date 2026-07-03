@@ -1,5 +1,4 @@
 import type { CommitlintConfig } from './commitlint.d.ts'
-import type { LintStagedConfig } from './lint-staged.d.ts'
 
 /** A semantic-release plugin: a module name, or `[name, options]`. */
 export type PluginSpec = string | [string, Record<string, unknown>]
@@ -163,8 +162,6 @@ export interface InitOptions {
   packageManager?: PackageManager
   /** Node version written into the CI workflow. Default: `24`. */
   node?: number
-  /** Create the husky commit-msg hook. Default: `true`. */
-  hooks?: boolean
   /** Overwrite files that already exist. Default: `false`. */
   force?: boolean
 }
@@ -186,10 +183,7 @@ export function detectPackageManager(cwd: string): PackageManager
 /** The shared commitlint configuration (also at `@krislintigo/release-kit/commitlint`). */
 export declare const commitlintConfig: CommitlintConfig
 
-/** The shared lint-staged configuration (also at `@krislintigo/release-kit/lint-staged`). */
-export declare const lintStagedConfig: LintStagedConfig
-
-export type { CommitlintConfig, LintStagedConfig }
+export type { CommitlintConfig }
 
 declare const _default: ReleaseConfig
 export default _default

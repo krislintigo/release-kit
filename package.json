@@ -15,7 +15,7 @@
   },
   "packageManager": "pnpm@10.7.0",
   "engines": {
-    "node": ">=22.13.1"
+    "node": ">=24.16.0"
   },
   "files": [
     "src",
@@ -37,10 +37,6 @@
     "./commitlint": {
       "types": "./src/commitlint.d.ts",
       "default": "./src/commitlint.js"
-    },
-    "./lint-staged": {
-      "types": "./src/lint-staged.d.ts",
-      "default": "./src/lint-staged.js"
     },
     "./package.json": "./package.json"
   },
@@ -69,12 +65,9 @@
     "release-config"
   ],
   "peerDependencies": {
+    "@commitlint/cli": ">=21",
+    "husky": ">=9",
     "semantic-release": ">=25"
-  },
-  "peerDependenciesMeta": {
-    "semantic-release": {
-      "optional": true
-    }
   },
   "dependencies": {
     "@commitlint/config-conventional": "^21.2.0",

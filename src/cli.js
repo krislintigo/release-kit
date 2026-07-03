@@ -25,7 +25,6 @@ Options:
   init:
     --pm <pnpm|npm|yarn>   Package manager to target (auto-detected).
     --node <version>       Node version for the CI workflow (default 24).
-    --no-hooks             Do not create the husky commit-msg hook.
     --force                Overwrite files that already exist.
   release:
     --dry-run              Compute the next release without publishing.
@@ -98,7 +97,6 @@ async function runInit(flags) {
   const result = init({
     packageManager: pm,
     node: flags.node ? Number(flags.node) : undefined,
-    hooks: flags.hooks !== false,
     force: flags.force === true,
   })
 

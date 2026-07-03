@@ -1,11 +1,10 @@
 # @krislintigo/release-kit
 
 Opinionated release toolkit for npm packages. It bundles a shareable
-[semantic-release](https://semantic-release.gitbook.io) configuration, shared
-[commitlint](https://commitlint.js.org) / [lint-staged](https://github.com/lint-staged/lint-staged)
-configs, a [husky](https://typicode.github.io/husky) hook, a
-[publint](https://publint.dev) check, and a small CLI that scaffolds all of it
-into a project and drives releases.
+[semantic-release](https://semantic-release.gitbook.io) configuration, a shared
+[commitlint](https://commitlint.js.org) config, a [husky](https://typicode.github.io/husky)
+hook, a [publint](https://publint.dev) check, and a small CLI that scaffolds all
+of it into a project and drives releases.
 
 The release pipeline builds the changelog from your Git history (Conventional
 Commits), creates GitHub releases and tags, and publishes to npm with provenance.
@@ -13,13 +12,16 @@ Commits), creates GitHub releases and tags, and publishes to npm with provenance
 ## Install
 
 ```sh
-pnpm add -D @krislintigo/release-kit semantic-release
+pnpm add -D @krislintigo/release-kit semantic-release husky @commitlint/cli
 ```
 
-`semantic-release` is an (optional) peer dependency — install it in any project
-that actually runs a release. Everything else the config needs is bundled.
+`semantic-release`, `husky` and `@commitlint/cli` are **required** peer
+dependencies. Using semantic-release means your commits must follow Conventional
+Commits, so husky + commitlint (which enforce exactly that) are part of the deal,
+not optional extras. Everything else — the release plugins and the commitlint
+ruleset — is bundled.
 
-Requires Node.js 22.13.1 or newer.
+Requires Node.js 24.16.0 or newer.
 
 ## Quick start
 
@@ -107,15 +109,6 @@ export default {
 
 Built on `@commitlint/config-conventional`, so the commit types it accepts are
 exactly the ones the release pipeline understands.
-
-## lint-staged (optional)
-
-```js
-// lint-staged.config.js
-export { default } from '@krislintigo/release-kit/lint-staged'
-```
-
-Formats staged files with Prettier. Requires `prettier` in your project.
 
 ## CLI
 

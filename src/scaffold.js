@@ -209,7 +209,6 @@ export function init(options = {}) {
     cwd = process.cwd(),
     packageManager = detectPackageManager(cwd),
     node = 24,
-    hooks = true,
     force = false,
   } = options
 
@@ -220,10 +219,10 @@ export function init(options = {}) {
   actions.push(write(cwd, '.github/workflows/release.yml', releaseWorkflow(packageManager, node), force))
   actions.push(write(cwd, 'commitlint.config.js', COMMITLINT_CONFIG, force))
 
-  if (hooks) {
-    const hook = `${PM[packageManager].commitlint}\n`
-    actions.push(write(cwd, '.husky/commit-msg', hook, force, 0o755))
-  }
+  // commitlint + husky are mandatory in this kit, so the commit-msg hook is
+  // always written — there is no opt-out.
+  const hook = `${PM[packageManager].commitlint}\n`
+  actions.push(write(cwd, '.husky/commit-msg', hook, force, 0o755))
 
   if (packageManager === 'pnpm') {
     actions.push(ensureNpmrc(cwd))
