@@ -1,10 +1,19 @@
 import process from 'node:process'
 
+import { cosmiconfig } from 'cosmiconfig'
+
 import { createReleaseConfig } from './config.js'
 
 /**
  * @import { ReleaseOptions } from './index.d.ts'
  */
+
+// Same module name semantic-release itself uses internally to search for
+// `.releaserc*` / `release.config.*` / a `release` field in package.json — see
+// semantic-release's own `lib/get-config.js`. Reusing it means "does the
+// project have its own config" is answered identically to how semantic-release
+// would answer it.
+const CONFIG_NAME = 'release'
 
 /**
  * Load semantic-release lazily. It is an (optional) peer dependency, so we only
@@ -22,6 +31,13 @@ async function loadSemanticRelease() {
  * {@link createReleaseConfig} option to build one on the fly. Returns
  * semantic-release's result object (`false` when no release was made).
  *
+ * With no `config`/config options, the project's own semantic-release config is
+ * used as-is when it has one (a `.releaserc.json`, `release.config.js`, or a
+ * `release` field in `package.json` — discovered the same way semantic-release
+ * itself would). Only when the project has no config of its own does this fall
+ * back to release-kit's bundled default ({@link createReleaseConfig}), so a
+ * project needs no `.releaserc.json` at all to release.
+ *
  * @param {ReleaseOptions} [options]
  * @returns {Promise<import('semantic-release').Result>}
  */
@@ -36,11 +52,18 @@ export async function release(options = {}) {
 
   const semanticRelease = await loadSemanticRelease()
 
-  // With an explicit config or config options, build/inject it. Otherwise pass
-  // nothing so semantic-release loads the project's own config (e.g. a
-  // `.releaserc.json` that extends "@krislintigo/release-kit") — this keeps any
-  // per-project customisation intact when invoked via `release-kit release`.
-  const base = config ?? (Object.keys(configOptions).length > 0 ? createReleaseConfig(configOptions) : {})
+  let base = config
+  if (!base) {
+    if (Object.keys(configOptions).length > 0) {
+      // Explicit createReleaseConfig options always take priority — they must
+      // go through createReleaseConfig itself, since raw option names like
+      // `npm`/`github`/`preset` are our abstraction, not semantic-release's.
+      base = createReleaseConfig(configOptions)
+    } else {
+      const hasOwnConfig = Boolean(await cosmiconfig(CONFIG_NAME).search(cwd))
+      base = hasOwnConfig ? {} : createReleaseConfig()
+    }
+  }
 
   return semanticRelease({ ...base, dryRun }, { cwd, env })
 }

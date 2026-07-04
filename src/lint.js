@@ -1,18 +1,45 @@
 import process from 'node:process'
-
-import sharedConfig from './commitlint.js'
+import { fileURLToPath } from 'node:url'
 
 /**
  * @import { LintCommitsOptions, LintCommitsResult } from './index.d.ts'
  */
+
+// The shared config's `extends: ['@commitlint/config-conventional']` must
+// resolve from release-kit's own install location, not the project's — that
+// package is release-kit's dependency, not necessarily reachable (or hoisted)
+// from a consumer project's node_modules. Only used for the fallback load.
+const OWN_DIR = fileURLToPath(new URL('.', import.meta.url))
+
+/**
+ * A resolved commitlint config counts as "the project configured itself" once
+ * it actually says something — some extends, rules, or plugins. An empty shell
+ * (nothing found on disk) means there is nothing to defer to.
+ *
+ * @param {{ extends?: unknown[], rules?: Record<string, unknown>, plugins?: Record<string, unknown> }} loaded
+ * @returns {boolean}
+ */
+function isConfigured(loaded) {
+  return (
+    (loaded.extends?.length ?? 0) > 0 ||
+    Object.keys(loaded.rules ?? {}).length > 0 ||
+    Object.keys(loaded.plugins ?? {}).length > 0
+  )
+}
 
 /**
  * Lint commit messages with commitlint's own engine, imported programmatically.
  * This is why the consumer never needs the `commitlint` binary: release-kit
  * bundles `@commitlint/{load,read,lint,format}` and drives them itself.
  *
- * The shared config is used as the seed, so linting works even when the project
- * has no `commitlint.config.js`; if it does have one, `load` merges it on top.
+ * `@commitlint/load`'s `seed` argument outranks whatever the project's own
+ * config file sets (it is merged in last), so passing our shared config as seed
+ * would silently override a project's edits to the very same rules. Instead we
+ * let `load` discover the project's own config first — which already extends
+ * `@krislintigo/release-kit/commitlint` when scaffolded by `init`, and correctly
+ * lets the project override individual rules through normal extends semantics
+ * — and only fall back to the shared config directly when the project has no
+ * commitlint config of its own at all.
  *
  * @param {LintCommitsOptions} [options]
  * @returns {Promise<LintCommitsResult>}
@@ -33,7 +60,12 @@ export async function lintCommits(options = {}) {
   const lint = lintMod.default ?? lintMod
   const format = formatMod.default ?? formatMod.format
 
-  const loaded = await load(sharedConfig, { cwd })
+  let loaded = await load({}, { cwd })
+  if (!isConfigured(loaded)) {
+    const sharedConfig = (await import('./commitlint.js')).default
+    loaded = await load(sharedConfig, { cwd: OWN_DIR })
+  }
+
   const messages = await read({ cwd, edit, from, to })
 
   const lintOptions = {

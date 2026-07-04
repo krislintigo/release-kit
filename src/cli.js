@@ -38,7 +38,7 @@ Options:
     --edit <file>            Lint the message in <file> (git passes $1).
     --from <ref> --to <ref>  Lint a range of commits (e.g. in CI).
   install-hooks:
-    --dir <path>             Hooks directory (default .githooks).
+    --dir <path>             Hooks directory (default: release-kit's own bundled hooks).
   check:
     --self                   Lint this package (@krislintigo/release-kit).
     --strict                 Treat suggestions as failures.
@@ -133,6 +133,12 @@ async function runInit(flags) {
   console.log(`       ${install}`)
   console.log(`  2. Commit the generated files; running install activates the git hook.`)
   console.log(`  3. Push to "main" (or run the Release workflow) to publish.`)
+  console.log(
+    `\n  ${dim('The semantic-release and commitlint defaults are bundled and apply automatically —')}`,
+  )
+  console.log(
+    `  ${dim('add your own .releaserc.json / commitlint.config.js only if you want to override them.')}`,
+  )
   console.log(`\n  ${dim('Releasing needs a GITHUB_TOKEN, and npm trusted publishing or an NPM_TOKEN secret.')}\n`)
 }
 
@@ -173,11 +179,16 @@ async function runCommitlint(flags) {
 
 function runInstallHooks(flags) {
   const result = installHooks({ dir: typeof flags.dir === 'string' ? flags.dir : undefined })
-  if (result.skipped) {
-    console.log(dim('release-kit: no git repository — skipping git hooks setup.'))
-  } else {
+  if (!result.skipped) {
     console.log(green(`release-kit: git hooks enabled (core.hooksPath = ${result.dir}).`))
+    return
   }
+  const messages = {
+    'no-git': 'release-kit: no git repository — skipping git hooks setup.',
+    'custom-hooks-path': `release-kit: core.hooksPath is already set to "${result.dir}" — leaving it alone.`,
+    'existing-hook-file': `release-kit: a commit-msg hook already exists at "${result.dir}" — leaving it alone.`,
+  }
+  console.log(dim(messages[result.reason] ?? 'release-kit: git hooks setup skipped.'))
 }
 
 async function runCheck(flags) {

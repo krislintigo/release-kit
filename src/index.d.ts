@@ -181,19 +181,28 @@ export function detectPackageManager(cwd: string): PackageManager
 /** Options for {@link installHooks}. */
 export interface InstallHooksOptions {
   cwd?: string
-  /** Hooks directory to register via `core.hooksPath`. Default: `'.githooks'`. */
+  /** Hooks directory to register via `core.hooksPath`. Default: release-kit's own bundled `hooks/` directory. */
   dir?: string
 }
 
 /** Result of {@link installHooks}. */
 export interface InstallHooksResult {
   ok: boolean
-  /** True when skipped because there is no git repository. */
+  /** True when nothing was changed (see `reason`). */
   skipped: boolean
+  /** Present when `skipped` is true: why nothing was changed. */
+  reason?: 'no-git' | 'custom-hooks-path' | 'existing-hook-file'
+  /** The hooks directory now in effect (ours, or the project's own). */
   dir: string
 }
 
-/** Enable committed git hooks by setting `core.hooksPath`. Skips when there is no repo. */
+/**
+ * Point git at release-kit's bundled hooks directory via `core.hooksPath`, so
+ * commit-msg linting works without any hook file in the project. A hooks setup
+ * the project already has (a different `core.hooksPath`, or a real hook file at
+ * the default location) takes priority and is left untouched. Skips when there
+ * is no git repository.
+ */
 export function installHooks(options?: InstallHooksOptions): InstallHooksResult
 
 /** Options for {@link lintCommits}. */

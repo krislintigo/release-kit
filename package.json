@@ -1,7 +1,7 @@
 {
   "name": "@krislintigo/release-kit",
   "version": "1.1.2",
-  "description": "Opinionated release toolkit: a shareable semantic-release config, commitlint/husky/publint helpers, and a CLI to release and scaffold npm packages.",
+  "description": "Opinionated, self-contained release toolkit: bundled semantic-release + commitlint defaults, a native git hook, publint, and a CLI to release and scaffold npm packages.",
   "type": "module",
   "license": "MIT",
   "author": "krislintigo",
@@ -19,6 +19,7 @@
   },
   "files": [
     "src",
+    "hooks",
     "README.md",
     "LICENSE"
   ],
@@ -77,6 +78,7 @@
     "@semantic-release/npm": "^13.1.5",
     "@semantic-release/release-notes-generator": "^14.1.1",
     "conventional-changelog-conventionalcommits": "^9.3.1",
+    "cosmiconfig": "^9.0.2",
     "publint": "^0.3.21",
     "semantic-release": "^25.0.5"
   }

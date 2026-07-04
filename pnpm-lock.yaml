@@ -44,6 +44,9 @@ importers:
       conventional-changelog-conventionalcommits:
         specifier: ^9.3.1
         version: 9.3.1
+      cosmiconfig:
+        specifier: ^9.0.2
+        version: 9.0.2(typescript@6.0.3)
       publint:
         specifier: ^0.3.21
         version: 0.3.21

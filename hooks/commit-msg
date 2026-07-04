@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# Bundled with @krislintigo/release-kit — installed via `core.hooksPath`
+# (see src/hooks.js). Resolved relative to this script's own location, so it
+# works regardless of the consuming project's directory layout.
+dir=$(dirname "$0")
+node "$dir/../src/cli.js" commitlint --edit "$1"

@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import process from 'node:process'
 
@@ -15,7 +15,7 @@ const PM = {
   pnpm: {
     install: 'pnpm install --frozen-lockfile',
     run: 'pnpm',
-    setup: 'pnpm/action-setup@v4',
+    setup: 'pnpm/action-setup@v6',
   },
   npm: {
     install: 'npm ci',
@@ -67,8 +67,7 @@ function releaseWorkflow(pm, node) {
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -81,89 +80,42 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 ${setupPm}      - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${node}
           cache: ${cache}
-          registry-url: https://registry.npmjs.org
 
-      - name: Install dependencies
-        run: ${PM[pm].install}
-
-      - name: Check package
-        run: ${PM[pm].run} check
-
-      - name: Release
-        run: ${PM[pm].run} release
+      - run: ${PM[pm].install}
+      - run: ${PM[pm].run} check
+      - run: ${PM[pm].run} release
         env:
           GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-          # Only needed if you are not using npm trusted publishing (OIDC):
-          NPM_TOKEN: \${{ secrets.NPM_TOKEN }}
 `
 }
-
-const RELEASERC = `${JSON.stringify({ extends: '@krislintigo/release-kit' }, null, 2)}\n`
-
-const COMMITLINT_CONFIG = `export default {
-  extends: ['@krislintigo/release-kit/commitlint'],
-}
-`
-
-// Native git hook — no husky. Calls release-kit's own bin directly (always
-// present as a direct dependency), so there is no package-manager or PATH
-// lookup. git runs hooks from the repository root, where node_modules lives.
-const COMMIT_MSG_HOOK = `#!/usr/bin/env sh
-./node_modules/.bin/release-kit commitlint --edit "$1"
-`
-
-const NPMRC_PATTERNS = [
-  'public-hoist-pattern[]=@semantic-release/*',
-  'public-hoist-pattern[]=conventional-changelog-*',
-]
 
 /**
- * Ensure a directory exists, then write a file, honouring the `force` flag.
+ * Ensure a directory exists, then write a file, honoring the `force` flag.
  *
  * @param {string} cwd
  * @param {string} relativePath
  * @param {string} content
  * @param {boolean} force
- * @param {number} [mode]
  * @returns {ScaffoldAction}
  */
-function write(cwd, relativePath, content, force, mode) {
+function write(cwd, relativePath, content, force) {
   const target = join(cwd, relativePath)
   const exists = existsSync(target)
   if (exists && !force) return { path: relativePath, status: 'skipped' }
   mkdirSync(dirname(target), { recursive: true })
   writeFileSync(target, content)
-  if (mode !== undefined) chmodSync(target, mode)
   return { path: relativePath, status: exists ? 'overwritten' : 'created' }
-}
-
-/**
- * Merge pnpm hoist patterns into an existing (or new) `.npmrc`, adding only the
- * lines that are missing so an existing config is never clobbered.
- *
- * @param {string} cwd
- * @returns {ScaffoldAction}
- */
-function ensureNpmrc(cwd) {
-  const target = join(cwd, '.npmrc')
-  const existing = existsSync(target) ? readFileSync(target, 'utf8') : ''
-  const lines = existing.split('\n')
-  const missing = NPMRC_PATTERNS.filter((pattern) => !lines.includes(pattern))
-  if (missing.length === 0) return { path: '.npmrc', status: 'skipped' }
-  const prefix = existing.length > 0 && !existing.endsWith('\n') ? '\n' : ''
-  writeFileSync(target, existing + prefix + missing.join('\n') + '\n')
-  return { path: '.npmrc', status: existing ? 'overwritten' : 'created' }
 }
 
 /**
@@ -202,10 +154,18 @@ function patchPackageJson(cwd, force) {
 }
 
 /**
- * Scaffold release tooling into a project: semantic-release config, a CI
- * workflow, a commitlint config, a native git commit-msg hook, pnpm hoist
- * patterns, and release scripts. Existing files are left untouched unless
- * `force` is set.
+ * Scaffold a project's release CI and convenience scripts.
+ *
+ * Everything release-kit needs to actually run — the semantic-release config,
+ * the commitlint ruleset, and the git commit-msg hook — is bundled inside the
+ * package itself and applies automatically; `release-kit release` and
+ * `release-kit commitlint` work with zero files in the project. `init` only
+ * writes what genuinely has to live in the project: the GitHub Actions workflow
+ * (GitHub only reads workflows from the repo) and `package.json` scripts. If a
+ * project adds its own `.releaserc.json` / `commitlint.config.js` later, that
+ * takes priority over the bundled defaults automatically — no extra step.
+ *
+ * Existing files are left untouched unless `force` is set.
  *
  * @param {InitOptions} [options]
  * @returns {InitResult}
@@ -221,15 +181,7 @@ export function init(options = {}) {
   /** @type {ScaffoldAction[]} */
   const actions = []
 
-  actions.push(write(cwd, '.releaserc.json', RELEASERC, force))
   actions.push(write(cwd, '.github/workflows/release.yml', releaseWorkflow(packageManager, node), force))
-  actions.push(write(cwd, 'commitlint.config.js', COMMITLINT_CONFIG, force))
-  actions.push(write(cwd, '.githooks/commit-msg', COMMIT_MSG_HOOK, force, 0o755))
-
-  if (packageManager === 'pnpm') {
-    actions.push(ensureNpmrc(cwd))
-  }
-
   actions.push(patchPackageJson(cwd, force))
 
   return { packageManager, actions }
