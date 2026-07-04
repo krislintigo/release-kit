@@ -1,6 +1,6 @@
 {
   "name": "@krislintigo/release-kit",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Opinionated, self-contained release toolkit: bundled semantic-release + commitlint defaults, a native git hook, publint, and a CLI to release and scaffold npm packages.",
   "type": "module",
   "license": "MIT",
