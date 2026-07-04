@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/krislintigo/release-kit/compare/v1.2.0...v1.3.0) (2026-07-04)
+
+### Features
+
+* **install-hooks:** add reset dir ability, add force options ([b7db0c6](https://github.com/krislintigo/release-kit/commit/b7db0c6ad3ef2940a48a8c6758165130bd479396))
+
 ## [1.2.0](https://github.com/krislintigo/release-kit/compare/v1.1.2...v1.2.0) (2026-07-04)
 
 ### Features
