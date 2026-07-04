@@ -129,7 +129,19 @@ bundled) against release-kit's shared ruleset, built on
 
 If the project already manages its own git hooks — a different
 `core.hooksPath`, or a real hook file already sitting at `.git/hooks/commit-msg`
-— `install-hooks` detects that and leaves it alone.
+— the plain, unattended `release-kit install-hooks` (as run from `prepare`)
+detects that and leaves it alone.
+
+### Setting a custom hooks directory, or resetting to the default
+
+`--dir` and `--reset` are explicit requests, so unlike the plain, unattended
+form above, they always apply — overwriting whatever `core.hooksPath` currently
+points at:
+
+```sh
+release-kit install-hooks --dir .githooks   # point core.hooksPath at .githooks
+release-kit install-hooks --reset           # point it back at the bundled default
+```
 
 ### Overriding the ruleset
 
@@ -183,8 +195,9 @@ if (report.ok) await release()
 - `check(options)` — run publint and get structured results.
 - `lintCommits(options)` — lint commit messages; uses the project's own
   commitlint config when present, the bundled ruleset otherwise.
-- `installHooks(options)` — point `core.hooksPath` at the bundled hooks; skips
-  when there is no repo, or the project already manages its own hooks.
+- `installHooks(options)` — point `core.hooksPath` at the bundled hooks (or
+  `options.dir`); skips when there is no repo, or (unless `force: true`) the
+  project already manages its own hooks.
 - `init(options)` / `detectPackageManager(cwd)` — the scaffolding used by the CLI.
 
 ## CI

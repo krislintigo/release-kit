@@ -55,19 +55,24 @@ function ensureExecutable(dir) {
  * Point git at release-kit's bundled hooks directory via `core.hooksPath`, so
  * the commit-msg hook works without any file in the project itself.
  *
- * A hooks setup the project already has takes priority and is left alone:
- * this is a no-op when `core.hooksPath` is already set to something else (a
- * different hook manager, or a project-specific hooks directory), or when a
- * real (non-sample) hook already exists at the default `$GIT_DIR/hooks`.
+ * By default, a hooks setup the project already has takes priority and is left
+ * alone: this is a no-op when `core.hooksPath` is already set to something else
+ * (a different hook manager, or a project-specific hooks directory), or when a
+ * real (non-sample) hook already exists at the default `$GIT_DIR/hooks`. This
+ * is what makes it safe to run unattended from `prepare` on every install.
+ *
+ * Pass `force: true` for an explicit, deliberate change instead — e.g. setting
+ * a custom `dir`, or resetting back to the bundled default by omitting `dir`
+ * while forcing. An explicit call is assumed to know what it's overwriting.
  *
  * Skips gracefully when there is no git repository (e.g. `prepare` still runs
- * when the package is installed outside of one).
+ * when the package is installed outside of one) regardless of `force`.
  *
  * @param {InstallHooksOptions} [options]
  * @returns {InstallHooksResult}
  */
 export function installHooks(options = {}) {
-  const { cwd = process.cwd(), dir = BUNDLED_HOOKS_DIR } = options
+  const { cwd = process.cwd(), dir = BUNDLED_HOOKS_DIR, force = false } = options
 
   let gitDir
   try {
@@ -76,19 +81,21 @@ export function installHooks(options = {}) {
     return { ok: false, skipped: true, reason: 'no-git', dir }
   }
 
-  let existingHooksPath = ''
-  try {
-    existingHooksPath = git(['config', 'core.hooksPath'], cwd)
-  } catch {
-    // unset — fall through
-  }
+  if (!force) {
+    let existingHooksPath = ''
+    try {
+      existingHooksPath = git(['config', 'core.hooksPath'], cwd)
+    } catch {
+      // unset — fall through
+    }
 
-  if (existingHooksPath && existingHooksPath !== dir) {
-    return { ok: false, skipped: true, reason: 'custom-hooks-path', dir: existingHooksPath }
-  }
+    if (existingHooksPath && existingHooksPath !== dir) {
+      return { ok: false, skipped: true, reason: 'custom-hooks-path', dir: existingHooksPath }
+    }
 
-  if (!existingHooksPath && existsSync(join(gitDir, 'hooks', 'commit-msg'))) {
-    return { ok: false, skipped: true, reason: 'existing-hook-file', dir: join(gitDir, 'hooks') }
+    if (!existingHooksPath && existsSync(join(gitDir, 'hooks', 'commit-msg'))) {
+      return { ok: false, skipped: true, reason: 'existing-hook-file', dir: join(gitDir, 'hooks') }
+    }
   }
 
   if (dir === BUNDLED_HOOKS_DIR) {

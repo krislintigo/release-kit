@@ -183,6 +183,13 @@ export interface InstallHooksOptions {
   cwd?: string
   /** Hooks directory to register via `core.hooksPath`. Default: release-kit's own bundled `hooks/` directory. */
   dir?: string
+  /**
+   * Skip the "don't clobber an existing setup" checks and always apply `dir`.
+   * Use for an explicit, deliberate change — e.g. setting a custom directory,
+   * or resetting to the bundled default (call with `force: true` and no `dir`).
+   * Default: `false` (safe to run unattended, e.g. from `prepare`).
+   */
+  force?: boolean
 }
 
 /** Result of {@link installHooks}. */
@@ -198,10 +205,11 @@ export interface InstallHooksResult {
 
 /**
  * Point git at release-kit's bundled hooks directory via `core.hooksPath`, so
- * commit-msg linting works without any hook file in the project. A hooks setup
- * the project already has (a different `core.hooksPath`, or a real hook file at
- * the default location) takes priority and is left untouched. Skips when there
- * is no git repository.
+ * commit-msg linting works without any hook file in the project. By default, a
+ * hooks setup the project already has (a different `core.hooksPath`, or a real
+ * hook file at the default location) takes priority and is left untouched —
+ * pass `force: true` to override that and apply `dir` unconditionally. Skips
+ * when there is no git repository regardless of `force`.
  */
 export function installHooks(options?: InstallHooksOptions): InstallHooksResult
 

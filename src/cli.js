@@ -38,7 +38,11 @@ Options:
     --edit <file>            Lint the message in <file> (git passes $1).
     --from <ref> --to <ref>  Lint a range of commits (e.g. in CI).
   install-hooks:
-    --dir <path>             Hooks directory (default: release-kit's own bundled hooks).
+    --dir <path>             Set a custom hooks directory (always applied).
+    --reset                  Reset to release-kit's own bundled hooks (always applied).
+                             With neither flag: apply the bundled default, but leave
+                             an existing hooks setup untouched (safe for unattended
+                             use, e.g. from "prepare").
   check:
     --self                   Lint this package (@krislintigo/release-kit).
     --strict                 Treat suggestions as failures.
@@ -178,7 +182,16 @@ async function runCommitlint(flags) {
 }
 
 function runInstallHooks(flags) {
-  const result = installHooks({ dir: typeof flags.dir === 'string' ? flags.dir : undefined })
+  if (typeof flags.dir === 'string' && flags.reset === true) {
+    throw new Error('Use either --dir or --reset, not both.')
+  }
+  // --dir and --reset are explicit, deliberate requests — always apply them,
+  // bypassing the "don't clobber an existing setup" checks that protect the
+  // implicit, unattended call made from the "prepare" script.
+  const explicit = typeof flags.dir === 'string' || flags.reset === true
+  const dir = flags.reset === true ? undefined : typeof flags.dir === 'string' ? flags.dir : undefined
+
+  const result = installHooks({ dir, force: explicit })
   if (!result.skipped) {
     console.log(green(`release-kit: git hooks enabled (core.hooksPath = ${result.dir}).`))
     return
